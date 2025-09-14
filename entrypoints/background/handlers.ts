@@ -4,22 +4,51 @@
 
 import { MessageType, MessageFactory, type Message, type MessageResponse } from '~/types/messages';
 import { storage } from '~/services/storage';
+import { historyService } from '~/services/history';
 import type { ConvertPageRequest, ConvertTabsRequest } from '~/types/messages';
 
 /**
  * Setup context menu items
  */
 export function setupContextMenu() {
+  // Page context menu items
   browser.contextMenus.create({
-    id: 'copy-as-markdown',
-    title: 'Copy as Markdown',
-    contexts: ['page', 'selection'],
+    id: 'copy-page-as-markdown',
+    title: 'Copy Page as Markdown',
+    contexts: ['page'],
   });
 
   browser.contextMenus.create({
-    id: 'download-as-markdown',
-    title: 'Download as Markdown',
-    contexts: ['page', 'selection'],
+    id: 'download-page-as-markdown',
+    title: 'Download Page as Markdown',
+    contexts: ['page'],
+  });
+
+  // Selection context menu items
+  browser.contextMenus.create({
+    id: 'copy-selection-as-markdown',
+    title: 'Copy Selection as Markdown',
+    contexts: ['selection'],
+  });
+
+  browser.contextMenus.create({
+    id: 'download-selection-as-markdown',
+    title: 'Download Selection as Markdown',
+    contexts: ['selection'],
+  });
+
+  // Link context menu items
+  browser.contextMenus.create({
+    id: 'copy-link-as-markdown',
+    title: 'Copy Link as Markdown',
+    contexts: ['link'],
+  });
+
+  // Image context menu items
+  browser.contextMenus.create({
+    id: 'copy-image-as-markdown',
+    title: 'Copy Image as Markdown',
+    contexts: ['image'],
   });
 
   browser.contextMenus.create({
@@ -189,8 +218,8 @@ async function handleConvertPage(
       await downloadMarkdown(document.content, fileName);
     }
 
-    // Record the conversion
-    await storage.addRecentConversion({
+    // Record the conversion in history
+    await historyService.addEntry({
       id: crypto.randomUUID(),
       url: content.url,
       title: content.title,
@@ -480,17 +509,186 @@ export async function handleContextMenuClick(
   const preferences = await storage.getPreferences();
   const profileId = preferences.defaultProfile;
 
-  const request: ConvertPageRequest = {
-    profileId,
-    mode: info.menuItemId === 'download-as-markdown' ? 'download' : 'copy',
-    includeMetadata: true,
-  };
+  switch (info.menuItemId) {
+    case 'copy-page-as-markdown':
+    case 'download-page-as-markdown': {
+      const request: ConvertPageRequest = {
+        profileId,
+        mode: info.menuItemId === 'download-page-as-markdown' ? 'download' : 'copy',
+        includeMetadata: true,
+      };
 
-  const message = MessageFactory.create(MessageType.CONVERT_PAGE, request, {
-    context: 'background',
-  });
+      const message = MessageFactory.create(MessageType.CONVERT_PAGE, request, {
+        context: 'background',
+      });
 
-  await handleConvertPage(request, message.id);
+      await handleConvertPage(request, message.id);
+      break;
+    }
+
+    case 'copy-selection-as-markdown':
+    case 'download-selection-as-markdown': {
+      await handleSelectionConversion(
+        tab.id,
+        profileId,
+        info.menuItemId === 'download-selection-as-markdown' ? 'download' : 'copy',
+        info.selectionText
+      );
+      break;
+    }
+
+    case 'copy-link-as-markdown': {
+      if (info.linkUrl) {
+        const linkText = info.linkText || info.linkUrl;
+        const markdown = `[${linkText}](${info.linkUrl})`;
+        await copyToClipboard(markdown);
+
+        if (preferences.showNotifications) {
+          browser.notifications.create({
+            type: 'basic',
+            iconUrl: '/icon/128.png',
+            title: 'Copy as Markdown',
+            message: 'Link copied to clipboard!',
+          });
+        }
+      }
+      break;
+    }
+
+    case 'copy-image-as-markdown': {
+      if (info.srcUrl) {
+        const altText = info.linkText || 'Image';
+        const markdown = `![${altText}](${info.srcUrl})`;
+        await copyToClipboard(markdown);
+
+        if (preferences.showNotifications) {
+          browser.notifications.create({
+            type: 'basic',
+            iconUrl: '/icon/128.png',
+            title: 'Copy as Markdown',
+            message: 'Image markdown copied to clipboard!',
+          });
+        }
+      }
+      break;
+    }
+
+    case 'copy-all-tabs': {
+      const tabs = await browser.tabs.query({ currentWindow: true });
+      const tabIds = tabs.map(t => String(t.id)).filter(id => id !== 'undefined');
+
+      const request: ConvertTabsRequest = {
+        tabIds,
+        profileId,
+        mode: 'copy',
+        batchMode: 'combined',
+        includeMetadata: true,
+      };
+
+      const message = MessageFactory.create(MessageType.CONVERT_TABS, request, {
+        context: 'background',
+      });
+
+      await handleConvertTabs(request, message.id);
+      break;
+    }
+  }
+}
+
+/**
+ * Handle selection conversion
+ */
+async function handleSelectionConversion(
+  tabId: number,
+  profileId: string,
+  mode: 'copy' | 'download',
+  selectionText?: string
+) {
+  try {
+    // Execute script to get selected HTML
+    const [result] = await browser.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const selection = window.getSelection();
+        if (!selection || selection.toString().trim() === '') {
+          return null;
+        }
+
+        // Create a container with the selected content
+        const container = document.createElement('div');
+        for (let i = 0; i < selection.rangeCount; i++) {
+          const range = selection.getRangeAt(i);
+          container.appendChild(range.cloneContents());
+        }
+
+        return {
+          html: container.innerHTML,
+          text: selection.toString(),
+          url: window.location.href,
+          title: document.title,
+        };
+      },
+    });
+
+    if (!result?.result) {
+      throw new Error('No text selected');
+    }
+
+    const selectionData = result.result;
+
+    // Convert the selection
+    const profile = await storage.getProfile(profileId);
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    // Ensure offscreen document exists
+    await ensureOffscreenDocument();
+
+    // Send HTML to offscreen document for conversion
+    const conversionResult = await browser.runtime.sendMessage({
+      type: 'CONVERT_HTML',
+      html: selectionData.html,
+      profile,
+      metadata: {
+        title: `Selection from: ${selectionData.title}`,
+        url: selectionData.url,
+      },
+    });
+
+    if (!conversionResult || !conversionResult.success) {
+      throw new Error(conversionResult?.error || 'Conversion failed');
+    }
+
+    const document = conversionResult.data;
+
+    // Handle the conversion based on mode
+    if (mode === 'copy') {
+      await copyToClipboard(document.content);
+
+      // Show notification
+      const preferences = await storage.getPreferences();
+      if (preferences.showNotifications) {
+        browser.notifications.create({
+          type: 'basic',
+          iconUrl: '/icon/128.png',
+          title: 'Copy as Markdown',
+          message: 'Selection copied to clipboard!',
+        });
+      }
+    } else if (mode === 'download') {
+      const fileName = `selection-${new Date().toISOString().slice(0, 10)}.md`;
+      await downloadMarkdown(document.content, fileName);
+    }
+  } catch (error) {
+    console.error('Selection conversion failed:', error);
+    browser.notifications.create({
+      type: 'basic',
+      iconUrl: '/icon/128.png',
+      title: 'Conversion Failed',
+      message: error instanceof Error ? error.message : 'Failed to convert selection',
+    });
+  }
 }
 
 /**

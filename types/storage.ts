@@ -43,6 +43,7 @@ export interface ConversionProfile {
   conversionOptions: TurndownService.Options;
   outputFormat: OutputFormat;
   matchRules?: ProfileMatchRules;
+  smartDetection?: SmartDetectionOptions;
   isDefault: boolean;
   isBuiltIn: boolean;
   createdAt: number;
@@ -137,6 +138,18 @@ export interface ContentFilters {
   includeIframes?: boolean;
   maxHeadingLevel: number;
   minContentLength: number;
+}
+
+export interface SmartDetectionOptions {
+  enabled: boolean;
+  autoDetectMainContent: boolean;
+  removeNavigation: boolean;
+  removeFooter: boolean;
+  removeSidebars: boolean;
+  removeAds: boolean;
+  removeComments: boolean;
+  minConfidenceThreshold: number;
+  fallbackToFullPage: boolean;
 }
 
 export interface FormattingOptions {

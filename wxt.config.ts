@@ -19,7 +19,8 @@ export default defineConfig({
       'downloads',
       'clipboardWrite',
       'scripting',
-      'offscreen'
+      'offscreen',
+      'notifications'
     ],
     host_permissions: [
       '<all_urls>'
@@ -31,6 +32,29 @@ export default defineConfig({
         32: 'icon/32.png',
         48: 'icon/48.png',
         128: 'icon/128.png'
+      }
+    },
+    commands: {
+      'copy-current-page': {
+        suggested_key: {
+          default: 'Ctrl+Shift+C',
+          mac: 'Command+Shift+C'
+        },
+        description: 'Copy current page as markdown'
+      },
+      'download-current-page': {
+        suggested_key: {
+          default: 'Ctrl+Shift+D',
+          mac: 'Command+Shift+D'
+        },
+        description: 'Download current page as markdown'
+      },
+      'copy-selection': {
+        suggested_key: {
+          default: 'Alt+Shift+C',
+          mac: 'Alt+Shift+C'
+        },
+        description: 'Copy selection as markdown'
       }
     }
   }

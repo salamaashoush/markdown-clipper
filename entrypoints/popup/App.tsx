@@ -10,6 +10,7 @@ import type { TabInfo, ConversionProfile } from '~/types/index';
 import { storage } from '~/services/storage';
 import { profileMatcher } from '~/services/profile-matcher';
 import type { PageContext } from '~/services/profile-matcher';
+import { BatchExportService } from '~/services/batch-export';
 
 const App: Component = () => {
   const [tabs, setTabs] = createSignal<TabInfo[]>([]);
@@ -164,7 +165,7 @@ const App: Component = () => {
     }
   };
 
-  const convertSelectedTabs = async (mode: 'copy' | 'download', batchMode: 'separate' | 'combined' = 'separate') => {
+  const convertSelectedTabs = async (mode: 'copy' | 'download' | 'zip', batchMode: 'separate' | 'combined' = 'separate') => {
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -185,17 +186,47 @@ const App: Component = () => {
         {
           tabIds,
           profileId: profile.id,
-          mode,
+          mode: mode === 'zip' ? 'download' : mode,
           batchMode,
           includeMetadata: true,
+          returnResults: mode === 'zip', // Request results for ZIP export
         },
         { context: 'popup' }
       );
 
       const response = await browser.runtime.sendMessage(message);
       if (response.success) {
-        const { successCount, failureCount } = response.data;
-        setSuccess(`Converted ${successCount} tabs${failureCount > 0 ? ` (${failureCount} failed)` : ''}`);
+        const { successCount, failureCount, results } = response.data;
+
+        // If mode is ZIP, create and download the zip file
+        if (mode === 'zip' && results && results.length > 0) {
+          const prefs = await storage.getPreferences();
+          const batchExporter = new BatchExportService({
+            organizeBy: 'domain',
+            includeIndex: true,
+            indexFormat: 'markdown'
+          });
+
+          // Add all conversions to the zip
+          results.forEach((result: any) => {
+            batchExporter.addConversion(result, prefs);
+          });
+
+          // Generate and download the zip
+          const { zipBlob, fileCount } = await batchExporter.generateZip();
+
+          // Create download link
+          const url = URL.createObjectURL(zipBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `markdown-export-${new Date().toISOString().slice(0, 10)}.zip`;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          setSuccess(`Exported ${fileCount} files to ZIP`);
+        } else {
+          setSuccess(`Converted ${successCount} tabs${failureCount > 0 ? ` (${failureCount} failed)` : ''}`);
+        }
       } else {
         throw new Error(response.error?.message || 'Batch conversion failed');
       }
@@ -356,6 +387,20 @@ const App: Component = () => {
             >
               Download Combined
             </Button>
+
+            <Show when={selectedTabs().length > 1}>
+              <Button
+                variant="primary"
+                fullWidth
+                loading={loading()}
+                onClick={() => convertSelectedTabs('zip')}
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                </svg>
+                Download as ZIP
+              </Button>
+            </Show>
           </div>
         </div>
       </Show>
