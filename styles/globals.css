@@ -71,4 +71,55 @@
   .animate-slide-up {
     animation: slide-up 0.3s ease-out;
   }
+
+  /* Profile Editor Animations */
+  @keyframes slideInRight {
+    from {
+      transform: translateX(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  .profile-section-enter {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  .profile-card-hover {
+    transition: all 0.2s ease-out;
+  }
+
+  .profile-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+
+  /* Focus states for form inputs */
+  .form-input-focus {
+    @apply transition-all duration-200;
+  }
+
+  .form-input-focus:focus {
+    @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-800;
+  }
 }
