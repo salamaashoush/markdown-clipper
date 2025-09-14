@@ -9,6 +9,7 @@ export interface ContentDetectionOptions {
   removeSidebars?: boolean;
   removeAds?: boolean;
   removeComments?: boolean;
+  removeCookieBanners?: boolean;
   minTextLength?: number;
   maxDepth?: number;
 }
@@ -24,12 +25,13 @@ export interface DetectedContent {
 }
 
 export class ContentDetector {
-  private readonly DEFAULT_OPTIONS: ContentDetectionOptions = {
+  private DEFAULT_OPTIONS: ContentDetectionOptions = {
     removeNav: true,
     removeFooter: true,
     removeSidebars: true,
     removeAds: true,
     removeComments: true,
+    removeCookieBanners: true,
     minTextLength: 200,
     maxDepth: 10,
   };
@@ -60,6 +62,72 @@ export class ContentDetector {
     sidebars: ['aside', '.sidebar', '.side-bar', '#sidebar', '.widget-area'],
     ads: ['.ad', '.ads', '.advertisement', '[class*="ad-"]', '[id*="ad-"]', '.sponsored'],
     comments: ['.comments', '#comments', '.comment-section', '#disqus_thread'],
+    cookieBanners: [
+      // Common cookie banner selectors
+      '[class*="cookie"]',
+      '[id*="cookie"]',
+      '[class*="consent"]',
+      '[id*="consent"]',
+      '[class*="gdpr"]',
+      '[id*="gdpr"]',
+      '[class*="privacy-banner"]',
+      '[class*="privacy-notice"]',
+      '[class*="cookie-banner"]',
+      '[class*="cookie-notice"]',
+      '[class*="cookie-popup"]',
+      '[class*="cookie-modal"]',
+      '[class*="cookie-bar"]',
+      '[class*="cookie-consent"]',
+      '[class*="cc-banner"]',
+      '[class*="cc-window"]',
+      '.cookie-banner',
+      '.cookie-notice',
+      '.cookie-popup',
+      '.cookie-modal',
+      '.cookie-bar',
+      '.gdpr-banner',
+      '.gdpr-notice',
+      '.privacy-banner',
+      '.consent-banner',
+      '#cookie-banner',
+      '#cookie-notice',
+      '#cookie-consent',
+      '#gdpr-banner',
+      '#consent-banner',
+      // Popular cookie consent libraries
+      '.cc-window',
+      '.cc-banner',
+      '.cc-cookie-consent',
+      '.cky-consent-container',
+      '.cky-consent-bar',
+      '.cookiealert',
+      '.cookiebanner',
+      '.cookieconsent',
+      '.cookie-law-info-bar',
+      '.cli-modal-backdrop',
+      '.moove_gdpr_cookie_info_bar',
+      '.gdpr-cookie-notice',
+      '.wp-gdpr-cookie-notice',
+      '.pum-overlay',
+      '[data-cookie-consent]',
+      '[data-gdpr]',
+      '[data-cookie-banner]',
+      '[aria-label*="cookie"]',
+      '[aria-label*="consent"]',
+      '[aria-label*="privacy"]',
+      '[role="dialog"][class*="cookie"]',
+      '[role="banner"][class*="cookie"]',
+      // Overlay and modal backgrounds
+      '.cookie-overlay',
+      '.gdpr-overlay',
+      '.privacy-overlay',
+      '.consent-overlay',
+      // Fixed position elements that might be cookie banners
+      'div[style*="position: fixed"][class*="cookie"]',
+      'div[style*="position: fixed"][class*="consent"]',
+      'div[style*="position: fixed"][class*="gdpr"]',
+      'div[style*="position: fixed"][class*="privacy"]'
+    ],
   };
 
   // Metadata selectors
@@ -98,11 +166,11 @@ export class ContentDetector {
     const opts = { ...this.DEFAULT_OPTIONS, ...options };
 
     // First, try to find main content using semantic selectors
-    let mainContent = this.findMainContent();
+    let mainContent = this.findMainContent(opts.minTextLength);
 
     // If not found, use heuristic approach
     if (!mainContent) {
-      mainContent = this.findContentHeuristically();
+      mainContent = this.findContentHeuristically(opts.minTextLength);
     }
 
     // Clean up the content
@@ -134,10 +202,10 @@ export class ContentDetector {
   /**
    * Find main content using semantic selectors
    */
-  private findMainContent(): HTMLElement | null {
+  private findMainContent(minTextLength?: number): HTMLElement | null {
     for (const selector of this.CONTENT_SELECTORS) {
       const element = document.querySelector<HTMLElement>(selector);
-      if (element && this.isValidContent(element)) {
+      if (element && this.isValidContent(element, minTextLength)) {
         return element.cloneNode(true) as HTMLElement;
       }
     }
@@ -147,8 +215,8 @@ export class ContentDetector {
   /**
    * Find content using heuristic approach
    */
-  private findContentHeuristically(): HTMLElement | null {
-    const candidates = this.getContentCandidates();
+  private findContentHeuristically(minTextLength?: number): HTMLElement | null {
+    const candidates = this.getContentCandidates(minTextLength);
 
     if (candidates.length === 0) {
       return null;
@@ -170,13 +238,14 @@ export class ContentDetector {
   /**
    * Get potential content candidates
    */
-  private getContentCandidates(): HTMLElement[] {
+  private getContentCandidates(minTextLength?: number): HTMLElement[] {
     const candidates: HTMLElement[] = [];
     const elements = document.querySelectorAll<HTMLElement>('div, section, article, main');
+    const threshold = minTextLength ?? this.DEFAULT_OPTIONS.minTextLength!;
 
     elements.forEach(element => {
       const text = element.textContent || '';
-      if (text.length > this.DEFAULT_OPTIONS.minTextLength!) {
+      if (text.length > threshold) {
         candidates.push(element);
       }
     });
@@ -249,6 +318,10 @@ export class ContentDetector {
     if (options.removeComments) {
       this.removeElements(cleaned, this.REMOVE_SELECTORS.comments);
     }
+    if (options.removeCookieBanners) {
+      this.removeElements(cleaned, this.REMOVE_SELECTORS.cookieBanners);
+      this.removeCookieBannersFromDocument();
+    }
 
     // Remove hidden elements
     this.removeHiddenElements(cleaned);
@@ -300,9 +373,10 @@ export class ContentDetector {
   /**
    * Check if element has valid content
    */
-  private isValidContent(element: HTMLElement): boolean {
+  private isValidContent(element: HTMLElement, minLength?: number): boolean {
     const text = element.textContent || '';
-    return text.length > this.DEFAULT_OPTIONS.minTextLength!;
+    const threshold = minLength ?? this.DEFAULT_OPTIONS.minTextLength!;
+    return text.length > threshold;
   }
 
   /**
@@ -386,17 +460,30 @@ export class ContentDetector {
 
     let confidence = 0;
 
-    // Word count factor
-    if (wordCount > 100) confidence += 20;
-    if (wordCount > 300) confidence += 20;
-    if (wordCount > 500) confidence += 20;
+    // Word count factor (adjusted for better scoring)
+    if (wordCount > 10) confidence += 10;
+    if (wordCount > 50) confidence += 15;
+    if (wordCount > 100) confidence += 15;
+    if (wordCount > 300) confidence += 10;
+    if (wordCount > 500) confidence += 10;
 
     // Structure factor
-    if (element.querySelector('h1, h2, h3')) confidence += 15;
-    if (element.querySelectorAll('p').length > 3) confidence += 15;
+    if (element.querySelector('h1, h2, h3')) confidence += 20;
+    if (element.querySelectorAll('p').length > 1) confidence += 10;
+    if (element.querySelectorAll('p').length > 3) confidence += 10;
 
-    // Semantic HTML factor
-    if (element.tagName === 'ARTICLE' || element.tagName === 'MAIN') {
+    // Semantic HTML factor (increased weight)
+    if (element.tagName === 'ARTICLE') {
+      confidence += 30;
+    } else if (element.tagName === 'MAIN') {
+      confidence += 25;
+    } else if (element.getAttribute('role') === 'main' || element.getAttribute('role') === 'article') {
+      confidence += 20;
+    }
+
+    // Class/ID indicators
+    const classAndId = (element.className + ' ' + element.id).toLowerCase();
+    if (classAndId.includes('content') || classAndId.includes('article') || classAndId.includes('main')) {
       confidence += 10;
     }
 
@@ -409,6 +496,90 @@ export class ContentDetector {
   public estimateReadingTime(element: HTMLElement): number {
     const wordCount = this.countWords(element);
     return Math.ceil(wordCount / 200); // Average reading speed
+  }
+
+  /**
+   * Remove cookie banners from the entire document
+   * This is more aggressive and runs on the whole page
+   */
+  private removeCookieBannersFromDocument(): void {
+    // Remove cookie banners from the entire document
+    this.REMOVE_SELECTORS.cookieBanners.forEach(selector => {
+      try {
+        document.querySelectorAll(selector).forEach(element => {
+          // Check if element looks like a cookie banner
+          if (this.looksLikeCookieBanner(element)) {
+            element.remove();
+          }
+        });
+      } catch (e) {
+        // Some selectors might be invalid, ignore errors
+        console.debug('Failed to remove cookie banner with selector:', selector, e);
+      }
+    });
+
+    // Also remove fixed/sticky positioned elements that might be cookie banners
+    document.querySelectorAll('div, section').forEach(element => {
+      const style = window.getComputedStyle(element);
+      const text = (element.textContent || '').toLowerCase();
+      const className = (element.className || '').toLowerCase();
+      const id = (element.id || '').toLowerCase();
+
+      // Check if it's positioned fixed or sticky and contains cookie-related text
+      if ((style.position === 'fixed' || style.position === 'sticky') &&
+          (text.includes('cookie') || text.includes('consent') || text.includes('gdpr') ||
+           text.includes('privacy') || text.includes('accept') || text.includes('agree') ||
+           className.includes('cookie') || className.includes('consent') ||
+           className.includes('gdpr') || className.includes('privacy') ||
+           id.includes('cookie') || id.includes('consent') ||
+           id.includes('gdpr') || id.includes('privacy'))) {
+
+        // Additional check: cookie banners usually have buttons
+        const hasButtons = element.querySelector('button, [role="button"], a[href="#"], .btn, .button');
+        if (hasButtons) {
+          element.remove();
+        }
+      }
+    });
+
+    // Remove overlays that might be blocking content
+    document.querySelectorAll('[class*="overlay"], [class*="backdrop"], [class*="modal-bg"]').forEach(element => {
+      const text = (element.textContent || '').toLowerCase();
+      const className = (element.className || '').toLowerCase();
+
+      if (text.includes('cookie') || text.includes('consent') || text.includes('gdpr') ||
+          className.includes('cookie') || className.includes('consent') || className.includes('gdpr')) {
+        element.remove();
+      }
+    });
+  }
+
+  /**
+   * Check if an element looks like a cookie banner
+   */
+  private looksLikeCookieBanner(element: Element): boolean {
+    const text = (element.textContent || '').toLowerCase();
+    const className = (element.className || '').toLowerCase();
+    const id = (element.id || '').toLowerCase();
+
+    // Check for cookie-related keywords
+    const keywords = ['cookie', 'consent', 'gdpr', 'privacy policy', 'accept cookies',
+                     'we use cookies', 'this site uses cookies', 'agree', 'accept all'];
+
+    const hasKeyword = keywords.some(keyword =>
+      text.includes(keyword) || className.includes(keyword) || id.includes(keyword)
+    );
+
+    if (!hasKeyword) return false;
+
+    // Check for buttons (cookie banners usually have accept/reject buttons)
+    const hasButtons = element.querySelector('button, [role="button"], a[href="#"], .btn, .button');
+
+    // Check if it's not the main content (cookie banners are usually small)
+    const wordCount = text.split(/\s+/).length;
+    const isSmallElement = wordCount < 200;
+
+    return hasButtons !== null && isSmallElement;
   }
 }
 

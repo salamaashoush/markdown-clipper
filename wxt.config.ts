@@ -37,24 +37,17 @@ export default defineConfig({
     commands: {
       'copy-current-page': {
         suggested_key: {
-          default: 'Ctrl+Shift+C',
-          mac: 'Command+Shift+C'
+          default: 'Ctrl+Shift+M',
+          mac: 'Command+Shift+M'
         },
         description: 'Copy current page as markdown'
       },
       'download-current-page': {
         suggested_key: {
-          default: 'Ctrl+Shift+D',
-          mac: 'Command+Shift+D'
+          default: 'Ctrl+Shift+L',
+          mac: 'Command+Shift+L'
         },
         description: 'Download current page as markdown'
-      },
-      'copy-selection': {
-        suggested_key: {
-          default: 'Alt+Shift+C',
-          mac: 'Alt+Shift+C'
-        },
-        description: 'Copy selection as markdown'
       }
     }
   }

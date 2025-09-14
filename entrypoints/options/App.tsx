@@ -6,11 +6,10 @@ import { Component, createSignal, onMount, Show } from 'solid-js';
 import { GeneralSettings } from './views/GeneralSettings';
 import { ProfileManager } from './views/ProfileManager';
 import { AdvancedSettings } from './views/AdvancedSettings';
-import { History } from './components/History';
 import { storage } from '~/services/storage';
 import type { UserPreferences, ConversionProfile } from '~/types';
 
-type TabView = 'general' | 'profiles' | 'history' | 'advanced';
+type TabView = 'general' | 'profiles' | 'advanced';
 
 const App: Component = () => {
   const [activeTab, setActiveTab] = createSignal<TabView>('general');
@@ -118,12 +117,6 @@ const App: Component = () => {
                 Conversion Profiles
               </button>
               <button
-                class={tabClass('history')}
-                onClick={() => setActiveTab('history')}
-              >
-                History
-              </button>
-              <button
                 class={tabClass('advanced')}
                 onClick={() => setActiveTab('advanced')}
               >
@@ -146,10 +139,6 @@ const App: Component = () => {
                   onUpdate={handleProfileUpdate}
                   onDelete={handleProfileDelete}
                 />
-              </Show>
-
-              <Show when={activeTab() === 'history'}>
-                <History />
               </Show>
 
               <Show when={activeTab() === 'advanced' && preferences()}>

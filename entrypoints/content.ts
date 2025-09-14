@@ -4,6 +4,7 @@
 
 import { MessageType } from '~/types/messages';
 import { ContentParser } from '~/services/parser';
+import { contentDetector } from '~/services/content-detector';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -42,6 +43,30 @@ export default defineContentScript({
         return false;
       }
 
+      // Handle smart content detection
+      if (message.type === 'DETECT_CONTENT') {
+        contentDetector.detectContent(message.payload)
+          .then(result => {
+            sendResponse({
+              success: true,
+              mainContent: result.mainContent?.outerHTML,
+              metadata: {
+                title: result.title,
+                author: result.author,
+                publishDate: result.publishDate,
+                readingTime: result.readingTime,
+                wordCount: result.wordCount,
+                confidence: result.confidence
+              }
+            });
+          })
+          .catch(error => {
+            sendResponse({ success: false, error: error.message });
+          });
+
+        return true;
+      }
+
       return false; // Default return for unhandled messages
     });
 
@@ -75,22 +100,49 @@ async function handleExtractContent(
     includeHidden?: boolean;
     waitForDynamic?: boolean;
     timeout?: number;
+    useSmartDetection?: boolean;
+    smartDetectionOptions?: any;
   },
   parser: ContentParser
 ) {
   try {
-    // Extract content using the parser
-    const extractedContent = await parser.extractContent(options);
+    let html: string;
+    let metadata: any = {};
 
-    // Clean the HTML if needed
-    const cleanedHtml = parser.cleanHTML(extractedContent.html);
+    // Check if smart detection should be used
+    if (options.useSmartDetection) {
+      const detected = await contentDetector.detectContent(options.smartDetectionOptions || {});
+
+      if (detected.mainContent && detected.confidence > 50) {
+        // Use smart detected content
+        html = detected.mainContent.outerHTML;
+        metadata = {
+          ...metadata,
+          author: detected.author,
+          publishDate: detected.publishDate,
+          readingTime: detected.readingTime,
+          wordCount: detected.wordCount,
+          detectionConfidence: detected.confidence
+        };
+      } else {
+        // Fallback to regular extraction
+        const extractedContent = await parser.extractContent(options);
+        html = parser.cleanHTML(extractedContent.html);
+        metadata = extractedContent.metadata;
+      }
+    } else {
+      // Use regular extraction
+      const extractedContent = await parser.extractContent(options);
+      html = parser.cleanHTML(extractedContent.html);
+      metadata = extractedContent.metadata;
+    }
 
     return {
-      html: cleanedHtml,
-      title: extractedContent.title,
-      url: extractedContent.url,
-      metadata: extractedContent.metadata,
-      isLoading: extractedContent.isLoading,
+      html,
+      title: document.title,
+      url: window.location.href,
+      metadata,
+      isLoading: document.readyState !== 'complete',
     };
   } catch (error) {
     console.error('Failed to extract content:', error);

@@ -43,7 +43,6 @@ export interface ConversionProfile {
   conversionOptions: TurndownService.Options;
   outputFormat: OutputFormat;
   matchRules?: ProfileMatchRules;
-  smartDetection?: SmartDetectionOptions;
   isDefault: boolean;
   isBuiltIn: boolean;
   createdAt: number;

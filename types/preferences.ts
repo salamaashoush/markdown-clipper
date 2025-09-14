@@ -12,6 +12,19 @@ export interface UserPreferences {
   theme: Theme;
   shortcuts?: KeyboardShortcuts;
   recentProfiles?: string[];
+  smartDetection?: SmartDetectionSettings;
+}
+
+export interface SmartDetectionSettings {
+  enabled: boolean;
+  autoDetectMainContent: boolean;
+  removeNavigation: boolean;
+  removeFooter: boolean;
+  removeSidebars: boolean;
+  removeAds: boolean;
+  removeComments: boolean;
+  removeCookieBanners: boolean;
+  minConfidenceThreshold: number;
 }
 
 export const NamingPattern = {
@@ -45,6 +58,17 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   customNamingTemplate: '{title}_{date}',
   showNotifications: true,
   theme: 'system',
+  smartDetection: {
+    enabled: false,
+    autoDetectMainContent: true,
+    removeNavigation: true,
+    removeFooter: true,
+    removeSidebars: true,
+    removeAds: true,
+    removeComments: true,
+    removeCookieBanners: true,
+    minConfidenceThreshold: 50,
+  },
 };
 
 // Template variables for custom file naming

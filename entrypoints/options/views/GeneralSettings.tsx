@@ -202,27 +202,216 @@ export const GeneralSettings: Component<GeneralSettingsProps> = (props) => {
       </section>
 
       <section>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Smart Content Detection</h2>
+
+        <div class="space-y-4">
+          {/* Enable Smart Detection */}
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Enable Smart Detection
+              </label>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Automatically detect and extract main content from web pages
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              class="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
+              checked={localPrefs().smartDetection?.enabled || false}
+              onChange={(e) => handleChange('smartDetection', {
+                ...localPrefs().smartDetection,
+                enabled: e.currentTarget.checked
+              })}
+            />
+          </div>
+
+          {/* Smart Detection Options */}
+          <Show when={localPrefs().smartDetection?.enabled}>
+            <div class="ml-6 space-y-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-600 dark:text-gray-400">
+                  Auto-detect main content
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  checked={localPrefs().smartDetection?.autoDetectMainContent ?? true}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    autoDetectMainContent: e.currentTarget.checked
+                  })}
+                />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-600 dark:text-gray-400">
+                  Remove navigation menus
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  checked={localPrefs().smartDetection?.removeNavigation ?? true}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    removeNavigation: e.currentTarget.checked
+                  })}
+                />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-600 dark:text-gray-400">
+                  Remove footers
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  checked={localPrefs().smartDetection?.removeFooter ?? true}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    removeFooter: e.currentTarget.checked
+                  })}
+                />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-600 dark:text-gray-400">
+                  Remove sidebars
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  checked={localPrefs().smartDetection?.removeSidebars ?? true}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    removeSidebars: e.currentTarget.checked
+                  })}
+                />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-600 dark:text-gray-400">
+                  Remove advertisements
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  checked={localPrefs().smartDetection?.removeAds ?? true}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    removeAds: e.currentTarget.checked
+                  })}
+                />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-600 dark:text-gray-400">
+                  Remove comment sections
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  checked={localPrefs().smartDetection?.removeComments ?? true}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    removeComments: e.currentTarget.checked
+                  })}
+                />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-600 dark:text-gray-400">
+                  Remove cookie banners
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  checked={localPrefs().smartDetection?.removeCookieBanners ?? true}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    removeCookieBanners: e.currentTarget.checked
+                  })}
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Minimum confidence threshold (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={localPrefs().smartDetection?.minConfidenceThreshold || 50}
+                  onChange={(e) => handleChange('smartDetection', {
+                    ...localPrefs().smartDetection,
+                    minConfidenceThreshold: parseInt(e.currentTarget.value) || 50
+                  })}
+                />
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Only use smart detection if confidence is above this threshold
+                </p>
+              </div>
+            </div>
+          </Show>
+
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <p class="text-xs text-blue-700 dark:text-blue-300">
+              <strong>Note:</strong> Smart detection uses DOM analysis and heuristic algorithms to identify the main content area of web pages.
+              It works best on article pages, blog posts, and documentation sites.            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Keyboard Shortcuts</h2>
 
         <div class="space-y-4">
           <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Convert Current Page</span>
-                <kbd class="ml-2 px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded">
-                  {localPrefs().shortcuts?.convertPage || 'Ctrl+Shift+C'}
-                </kbd>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Copy Current Page</span>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Copy the entire page as markdown to clipboard</p>
+                </div>
+                <div class="flex items-center gap-1">
+                  <kbd class="px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded">
+                    Ctrl+Shift+M
+                  </kbd>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">or</span>
+                  <kbd class="px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded">
+                    ⌘+Shift+M
+                  </kbd>
+                </div>
               </div>
-              <div>
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Open Extension</span>
-                <kbd class="ml-2 px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded">
-                  {localPrefs().shortcuts?.openPopup || 'Ctrl+Shift+M'}
-                </kbd>
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Download Current Page</span>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Download the entire page as a markdown file</p>
+                </div>
+                <div class="flex items-center gap-1">
+                  <kbd class="px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded">
+                    Ctrl+Shift+L
+                  </kbd>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">or</span>
+                  <kbd class="px-2 py-1 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded">
+                    ⌘+Shift+L
+                  </kbd>
+                </div>
               </div>
+
             </div>
-            <p class="text-xs text-gray-500 mt-2">
-              Keyboard shortcuts can be customized in your browser's extension settings
-            </p>
+
+            <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <p class="text-xs text-gray-500 dark:text-gray-400">
+                <svg class="inline-block w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Keyboard shortcuts can be customized in your browser's extension settings (chrome://extensions/shortcuts)
+              </p>
+            </div>
           </div>
         </div>
       </section>

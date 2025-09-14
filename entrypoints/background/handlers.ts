@@ -24,19 +24,6 @@ export function setupContextMenu() {
     contexts: ['page'],
   });
 
-  // Selection context menu items
-  browser.contextMenus.create({
-    id: 'copy-selection-as-markdown',
-    title: 'Copy Selection as Markdown',
-    contexts: ['selection'],
-  });
-
-  browser.contextMenus.create({
-    id: 'download-selection-as-markdown',
-    title: 'Download Selection as Markdown',
-    contexts: ['selection'],
-  });
-
   // Link context menu items
   browser.contextMenus.create({
     id: 'copy-link-as-markdown',
@@ -203,7 +190,9 @@ async function handleConvertPage(
     console.log('Conversion result:', conversionResult);
 
     if (!conversionResult || !conversionResult.success) {
-      throw new Error(conversionResult?.error || 'Conversion failed - offscreen document may not be responding');
+      throw new Error(
+        conversionResult?.error || 'Conversion failed - offscreen document may not be responding'
+      );
     }
 
     const document = conversionResult.data;
@@ -526,16 +515,6 @@ export async function handleContextMenuClick(
       break;
     }
 
-    case 'copy-selection-as-markdown':
-    case 'download-selection-as-markdown': {
-      await handleSelectionConversion(
-        tab.id,
-        profileId,
-        info.menuItemId === 'download-selection-as-markdown' ? 'download' : 'copy',
-        info.selectionText
-      );
-      break;
-    }
 
     case 'copy-link-as-markdown': {
       if (info.linkUrl) {
@@ -575,7 +554,7 @@ export async function handleContextMenuClick(
 
     case 'copy-all-tabs': {
       const tabs = await browser.tabs.query({ currentWindow: true });
-      const tabIds = tabs.map(t => String(t.id)).filter(id => id !== 'undefined');
+      const tabIds = tabs.map((t) => String(t.id)).filter((id) => id !== 'undefined');
 
       const request: ConvertTabsRequest = {
         tabIds,
@@ -596,106 +575,28 @@ export async function handleContextMenuClick(
 }
 
 /**
- * Handle selection conversion
- */
-async function handleSelectionConversion(
-  tabId: number,
-  profileId: string,
-  mode: 'copy' | 'download',
-  selectionText?: string
-) {
-  try {
-    // Execute script to get selected HTML
-    const [result] = await browser.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-        const selection = window.getSelection();
-        if (!selection || selection.toString().trim() === '') {
-          return null;
-        }
-
-        // Create a container with the selected content
-        const container = document.createElement('div');
-        for (let i = 0; i < selection.rangeCount; i++) {
-          const range = selection.getRangeAt(i);
-          container.appendChild(range.cloneContents());
-        }
-
-        return {
-          html: container.innerHTML,
-          text: selection.toString(),
-          url: window.location.href,
-          title: document.title,
-        };
-      },
-    });
-
-    if (!result?.result) {
-      throw new Error('No text selected');
-    }
-
-    const selectionData = result.result;
-
-    // Convert the selection
-    const profile = await storage.getProfile(profileId);
-    if (!profile) {
-      throw new Error('Profile not found');
-    }
-
-    // Ensure offscreen document exists
-    await ensureOffscreenDocument();
-
-    // Send HTML to offscreen document for conversion
-    const conversionResult = await browser.runtime.sendMessage({
-      type: 'CONVERT_HTML',
-      html: selectionData.html,
-      profile,
-      metadata: {
-        title: `Selection from: ${selectionData.title}`,
-        url: selectionData.url,
-      },
-    });
-
-    if (!conversionResult || !conversionResult.success) {
-      throw new Error(conversionResult?.error || 'Conversion failed');
-    }
-
-    const document = conversionResult.data;
-
-    // Handle the conversion based on mode
-    if (mode === 'copy') {
-      await copyToClipboard(document.content);
-
-      // Show notification
-      const preferences = await storage.getPreferences();
-      if (preferences.showNotifications) {
-        browser.notifications.create({
-          type: 'basic',
-          iconUrl: '/icon/128.png',
-          title: 'Copy as Markdown',
-          message: 'Selection copied to clipboard!',
-        });
-      }
-    } else if (mode === 'download') {
-      const fileName = `selection-${new Date().toISOString().slice(0, 10)}.md`;
-      await downloadMarkdown(document.content, fileName);
-    }
-  } catch (error) {
-    console.error('Selection conversion failed:', error);
-    browser.notifications.create({
-      type: 'basic',
-      iconUrl: '/icon/128.png',
-      title: 'Conversion Failed',
-      message: error instanceof Error ? error.message : 'Failed to convert selection',
-    });
-  }
-}
-
-/**
  * Extract content from a page
  */
 async function extractPageContent(tabId: number) {
   try {
+    // Get user preferences for smart detection settings
+    let useSmartDetection = false;
+    let smartDetectionOptions = {};
+
+    const preferences = await storage.getPreferences();
+    if (preferences.smartDetection?.enabled) {
+      useSmartDetection = true;
+      smartDetectionOptions = {
+        removeNav: preferences.smartDetection.removeNavigation,
+        removeFooter: preferences.smartDetection.removeFooter,
+        removeSidebars: preferences.smartDetection.removeSidebars,
+        removeAds: preferences.smartDetection.removeAds,
+        removeComments: preferences.smartDetection.removeComments,
+        removeCookieBanners: preferences.smartDetection.removeCookieBanners ?? true,
+        minTextLength: 200,
+      };
+    }
+
     // Try to send message to content script
     const response = await browser.tabs.sendMessage(tabId, {
       type: MessageType.EXTRACT_CONTENT,
@@ -703,6 +604,8 @@ async function extractPageContent(tabId: number) {
         includeHidden: false,
         waitForDynamic: true,
         timeout: 3000,
+        useSmartDetection,
+        smartDetectionOptions,
       },
     });
     return response;
