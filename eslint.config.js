@@ -3,8 +3,10 @@ import tseslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import solid from 'eslint-plugin-solid';
 import prettier from 'eslint-config-prettier';
+import autoImports from './.wxt/eslint-auto-imports.mjs';
 
 export default [
+  autoImports,
   eslint.configs.recommended,
   prettier,
   {

@@ -2,7 +2,7 @@
  * Offscreen document for DOM parsing and markdown conversion
  */
 
-import { MarkdownConverter } from '~/lib/converter/index';
+import { MarkdownConverter } from '~/services/converter';
 import type { ConversionProfile } from '~/types/storage';
 
 console.log('Offscreen document loaded and ready');
@@ -21,7 +21,7 @@ interface OffscreenMessage {
 }
 
 // Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message: OffscreenMessage, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendResponse: (response?: unknown) => void) => {
   console.log('Offscreen received message:', message.type);
 
   if (message.type === 'CONVERT_HTML') {

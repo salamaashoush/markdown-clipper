@@ -3,7 +3,7 @@
  */
 
 import { MessageType, MessageFactory, type Message, type MessageResponse } from '~/types/messages';
-import { storage } from '~/lib/storage/index';
+import { storage } from '~/services/storage';
 import type { ConvertPageRequest, ConvertTabsRequest } from '~/types/messages';
 
 /**

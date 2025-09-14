@@ -1,6 +1,6 @@
-import { Component, createSignal, onMount, createEffect } from 'solid-js';
-import type { ConversionProfile } from '~/types/storage';
-import { MarkdownFlavor } from '~/types/storage';
+import { Component, createSignal, createEffect, Show, For } from 'solid-js';
+import type { ConversionProfile, ProfileMatchRule } from '~/types/storage';
+import { MarkdownFlavor, ProfileMatchType, MatchMode } from '~/types/storage';
 
 interface ProfileEditorProps {
   profile: ConversionProfile;
@@ -322,6 +322,174 @@ export const ProfileEditor: Component<ProfileEditorProps> = (props) => {
             />
             <span class="text-sm text-gray-700 dark:text-gray-300">Remove tracking parameters</span>
           </label>
+        </div>
+      </section>
+
+      {/* Profile Match Rules */}
+      <section>
+        <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-3">Auto-Selection Rules</h4>
+        <div class="space-y-4">
+          <label class="flex items-center">
+            <input
+              type="checkbox"
+              class="mr-2 w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              checked={editedProfile().matchRules?.enabled || false}
+              onChange={(e) => {
+                const current = editedProfile().matchRules || {
+                  enabled: false,
+                  priority: 10,
+                  rules: [],
+                  matchType: 'any' as const,
+                };
+                updateField('matchRules', { ...current, enabled: e.currentTarget.checked });
+              }}
+            />
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              Enable auto-selection for this profile
+            </span>
+          </label>
+
+          <Show when={editedProfile().matchRules?.enabled}>
+            <div class="pl-6 space-y-4">
+              {/* Priority */}
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Priority (higher number = higher priority)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={editedProfile().matchRules?.priority || 10}
+                  onChange={(e) => {
+                    const current = editedProfile().matchRules!;
+                    updateField('matchRules', { ...current, priority: parseInt(e.currentTarget.value) || 10 });
+                  }}
+                />
+              </div>
+
+              {/* Match Type */}
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Match Type
+                </label>
+                <select
+                  class="w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={editedProfile().matchRules?.matchType || 'any'}
+                  onChange={(e) => {
+                    const current = editedProfile().matchRules!;
+                    updateField('matchRules', { ...current, matchType: e.currentTarget.value as 'any' | 'all' });
+                  }}
+                >
+                  <option value="any">Match any rule</option>
+                  <option value="all">Match all rules</option>
+                </select>
+              </div>
+
+              {/* Rules */}
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Match Rules
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = editedProfile().matchRules!;
+                      const newRule: ProfileMatchRule = {
+                        type: ProfileMatchType.DOMAIN,
+                        pattern: '',
+                        matchMode: MatchMode.CONTAINS,
+                      };
+                      updateField('matchRules', {
+                        ...current,
+                        rules: [...(current.rules || []), newRule],
+                      });
+                    }}
+                    class="px-3 py-1 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                  >
+                    Add Rule
+                  </button>
+                </div>
+
+                <div class="space-y-2">
+                  <For each={editedProfile().matchRules?.rules || []}>
+                    {(rule, index) => (
+                      <div class="flex gap-2 items-center">
+                        <select
+                          class="w-32 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          value={rule.type}
+                          onChange={(e) => {
+                            const current = editedProfile().matchRules!;
+                            const rules = [...current.rules];
+                            rules[index()] = { ...rules[index()], type: e.currentTarget.value as ProfileMatchType };
+                            updateField('matchRules', { ...current, rules });
+                          }}
+                        >
+                          <option value={ProfileMatchType.DOMAIN}>Domain</option>
+                          <option value={ProfileMatchType.URL_PATTERN}>URL</option>
+                          <option value={ProfileMatchType.TITLE}>Title</option>
+                          <option value={ProfileMatchType.META_TAG}>Meta Tag</option>
+                          <option value={ProfileMatchType.SELECTOR}>CSS Selector</option>
+                        </select>
+
+                        <select
+                          class="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          value={rule.matchMode}
+                          onChange={(e) => {
+                            const current = editedProfile().matchRules!;
+                            const rules = [...current.rules];
+                            rules[index()] = { ...rules[index()], matchMode: e.currentTarget.value as MatchMode };
+                            updateField('matchRules', { ...current, rules });
+                          }}
+                        >
+                          <option value={MatchMode.EXACT}>Exact</option>
+                          <option value={MatchMode.CONTAINS}>Contains</option>
+                          <option value={MatchMode.STARTS_WITH}>Starts with</option>
+                          <option value={MatchMode.ENDS_WITH}>Ends with</option>
+                          <option value={MatchMode.REGEX}>Regex</option>
+                        </select>
+
+                        <input
+                          type="text"
+                          placeholder={rule.type === ProfileMatchType.META_TAG ? "name:content" : "Pattern..."}
+                          class="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          value={rule.pattern}
+                          onChange={(e) => {
+                            const current = editedProfile().matchRules!;
+                            const rules = [...current.rules];
+                            rules[index()] = { ...rules[index()], pattern: e.currentTarget.value };
+                            updateField('matchRules', { ...current, rules });
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = editedProfile().matchRules!;
+                            const rules = current.rules.filter((_, i) => i !== index());
+                            updateField('matchRules', { ...current, rules });
+                          }}
+                          class="p-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </For>
+
+                  <Show when={(!editedProfile().matchRules?.rules || editedProfile().matchRules.rules.length === 0)}>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 italic">
+                      No rules defined. Add rules to auto-select this profile when visiting matching pages.
+                    </p>
+                  </Show>
+                </div>
+              </div>
+            </div>
+          </Show>
         </div>
       </section>
     </div>

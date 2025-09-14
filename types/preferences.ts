@@ -7,12 +7,11 @@ export interface UserPreferences {
   autoDownload: boolean;
   downloadPath?: string;
   fileNamingPattern: NamingPattern;
+  customNamingTemplate?: string;
   showNotifications: boolean;
   theme: Theme;
   shortcuts?: KeyboardShortcuts;
   recentProfiles?: string[];
-  advancedMode: boolean;
-  debugMode: boolean;
 }
 
 export const NamingPattern = {
@@ -43,8 +42,22 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   defaultProfile: 'default',
   autoDownload: false,
   fileNamingPattern: 'tab_title',
+  customNamingTemplate: '{title}_{date}',
   showNotifications: true,
   theme: 'system',
-  advancedMode: false,
-  debugMode: false,
 };
+
+// Template variables for custom file naming
+export const TEMPLATE_VARIABLES = {
+  '{title}': 'Page title',
+  '{domain}': 'Domain name (e.g., example.com)',
+  '{host}': 'Host name without subdomain',
+  '{date}': 'Current date (YYYY-MM-DD)',
+  '{time}': 'Current time (HH-MM-SS)',
+  '{timestamp}': 'Unix timestamp',
+  '{year}': 'Current year',
+  '{month}': 'Current month (01-12)',
+  '{day}': 'Current day (01-31)',
+} as const;
+
+export type TemplateVariable = keyof typeof TEMPLATE_VARIABLES;

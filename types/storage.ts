@@ -42,11 +42,45 @@ export interface ConversionProfile {
   formatting: FormattingOptions;
   conversionOptions: TurndownService.Options;
   outputFormat: OutputFormat;
+  matchRules?: ProfileMatchRules;
   isDefault: boolean;
   isBuiltIn: boolean;
   createdAt: number;
   updatedAt: number;
 }
+
+export interface ProfileMatchRules {
+  enabled: boolean;
+  priority: number; // Higher number = higher priority
+  rules: ProfileMatchRule[];
+  matchType: 'any' | 'all'; // Match any rule or all rules
+}
+
+export interface ProfileMatchRule {
+  type: ProfileMatchType;
+  pattern: string;
+  matchMode: MatchMode;
+}
+
+export const ProfileMatchType = {
+  DOMAIN: 'domain',
+  URL_PATTERN: 'url_pattern',
+  TITLE: 'title',
+  META_TAG: 'meta_tag',
+  SELECTOR: 'selector',
+} as const;
+
+export type ProfileMatchType = (typeof ProfileMatchType)[keyof typeof ProfileMatchType];
+
+export const MatchMode = {
+  EXACT: 'exact',
+  CONTAINS: 'contains',
+  REGEX: 'regex',
+  STARTS_WITH: 'starts_with',
+  ENDS_WITH: 'ends_with',
+} as const;
+
+export type MatchMode = (typeof MatchMode)[keyof typeof MatchMode];
 
 export const MarkdownFlavor = {
   COMMONMARK: 'commonmark',
@@ -213,6 +247,18 @@ export const DEFAULT_PROFILE: ConversionProfile = {
     addFootnotes: true,
     wrapLineLength: 0,
     preserveNewlines: false,
+  },
+  matchRules: {
+    enabled: true,
+    priority: 0, // Lowest priority - fallback for all pages
+    rules: [
+      {
+        type: 'url_pattern',
+        pattern: '*',
+        matchMode: 'contains',
+      }
+    ],
+    matchType: 'any',
   },
   isDefault: true,
   isBuiltIn: true,

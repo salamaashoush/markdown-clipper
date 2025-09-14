@@ -1,6 +1,6 @@
-import { Component, createSignal } from 'solid-js';
+import { Component, createSignal, onMount, createEffect } from 'solid-js';
 import type { UserPreferences } from '~/types/preferences';
-import { storage } from '~/lib/storage/index';
+import { storage } from '~/services/storage';
 
 interface AdvancedSettingsProps {
   preferences: UserPreferences;
@@ -10,8 +10,24 @@ interface AdvancedSettingsProps {
 export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
   const [localPrefs, setLocalPrefs] = createSignal(props.preferences);
   const [importStatus, setImportStatus] = createSignal<string>('');
+  const [storageInfo, setStorageInfo] = createSignal<any>(null);
 
-  const handleChange = (key: keyof UserPreferences, value: any) => {
+  // Update local preferences when props change
+  createEffect(() => {
+    setLocalPrefs(props.preferences);
+  });
+
+  // Load storage info on mount
+  onMount(async () => {
+    try {
+      const info = await storage.getStorageInfo();
+      setStorageInfo(info);
+    } catch (error) {
+      console.error('Failed to get storage info:', error);
+    }
+  });
+
+  const handleChange = async (key: keyof UserPreferences, value: any) => {
     const updated = { ...localPrefs(), [key]: value };
     setLocalPrefs(updated);
     props.onUpdate({ [key]: value });
@@ -68,50 +84,18 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
     }
   };
 
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const formatPercentage = (percentage: number) => {
+    return `${percentage.toFixed(1)}%`;
+  };
+
   return (
     <div class="space-y-6">
-      <section>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Developer Options</h2>
-
-        <div class="space-y-4">
-          {/* Advanced Mode */}
-          <div class="flex items-center justify-between">
-            <div>
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Advanced Mode
-              </label>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Show advanced options in the popup
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              class="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-              checked={localPrefs().advancedMode}
-              onChange={(e) => handleChange('advancedMode', e.currentTarget.checked)}
-            />
-          </div>
-
-          {/* Debug Mode */}
-          <div class="flex items-center justify-between">
-            <div>
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Debug Mode
-              </label>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Enable console logging for debugging
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              class="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-              checked={localPrefs().debugMode}
-              onChange={(e) => handleChange('debugMode', e.currentTarget.checked)}
-            />
-          </div>
-        </div>
-      </section>
-
       <section>
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Data Management</h2>
 
@@ -162,8 +146,8 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
           {importStatus() && (
             <div class={`p-3 rounded-lg ${
               importStatus().includes('successful')
-                ? 'bg-green-50 text-green-800 border border-green-200'
-                : 'bg-red-50 text-red-800 border border-red-200'
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-800'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-800'
             }`}>
               {importStatus()}
             </div>
@@ -175,7 +159,47 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Storage Information</h2>
 
         <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-          <StorageInfo />
+          {storageInfo() ? (
+            <div class="space-y-3">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600 dark:text-gray-400">Sync Storage</span>
+                  <span class="text-gray-900 dark:text-gray-100">
+                    {formatBytes(storageInfo().sync.used)} / {formatBytes(storageInfo().sync.total)}
+                  </span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    class="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${storageInfo().sync.percentage}%` }}
+                  />
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {formatPercentage(storageInfo().sync.percentage)} used
+                </p>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600 dark:text-gray-400">Local Storage</span>
+                  <span class="text-gray-900 dark:text-gray-100">
+                    {formatBytes(storageInfo().local.used)} / {formatBytes(storageInfo().local.total)}
+                  </span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    class="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${storageInfo().local.percentage}%` }}
+                  />
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {formatPercentage(storageInfo().local.percentage)} used
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div class="text-sm text-gray-500 dark:text-gray-400">Loading storage info...</div>
+          )}
         </div>
       </section>
 
@@ -189,7 +213,7 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-600 dark:text-gray-400">Author</span>
-            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Copy as Markdown Extension</span>
+            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Salama Ashoush</span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-600 dark:text-gray-400">License</span>
@@ -197,10 +221,10 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
           </div>
           <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <a
-              href="https://github.com/yourusername/copy-as-markdown"
+              href="https://github.com/salamaashoush/copy-as-markdown"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-sm text-primary-600 hover:text-primary-700"
+              class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
             >
               View on GitHub →
             </a>
@@ -210,73 +234,3 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
     </div>
   );
 };
-
-// Storage Info Component
-const StorageInfo: Component = () => {
-  const [info, setInfo] = createSignal<any>(null);
-
-  onMount(async () => {
-    try {
-      const storageInfo = await storage.getStorageInfo();
-      setInfo(storageInfo);
-    } catch (error) {
-      console.error('Failed to get storage info:', error);
-    }
-  });
-
-  if (!info()) {
-    return <div class="text-sm text-gray-500 dark:text-gray-400">Loading storage info...</div>;
-  }
-
-  const formatBytes = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
-  const formatPercentage = (percentage: number) => {
-    return `${percentage.toFixed(1)}%`;
-  };
-
-  return (
-    <div class="space-y-3">
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span class="text-gray-600 dark:text-gray-400">Sync Storage</span>
-          <span class="text-gray-900 dark:text-gray-100">
-            {formatBytes(info().sync.used)} / {formatBytes(info().sync.total)}
-          </span>
-        </div>
-        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-          <div
-            class="bg-primary-600 h-2 rounded-full"
-            style={{ width: `${info().sync.percentage}%` }}
-          />
-        </div>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          {formatPercentage(info().sync.percentage)} used
-        </p>
-      </div>
-
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span class="text-gray-600 dark:text-gray-400">Local Storage</span>
-          <span class="text-gray-900 dark:text-gray-100">
-            {formatBytes(info().local.used)} / {formatBytes(info().local.total)}
-          </span>
-        </div>
-        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-          <div
-            class="bg-primary-600 h-2 rounded-full"
-            style={{ width: `${info().local.percentage}%` }}
-          />
-        </div>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          {formatPercentage(info().local.percentage)} used
-        </p>
-      </div>
-    </div>
-  );
-};
-
-import { onMount } from 'solid-js';

@@ -7,10 +7,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts'],
+    setupFiles: ['./vitest.setup.ts'],
     coverage: {
       reporter: ['text', 'html'],
-      exclude: ['node_modules/', '.output/', '.wxt/', 'tests/', '*.config.*'],
+      exclude: ['node_modules/', '.output/', '.wxt/', '*.config.*', '*.test.ts', '*.test.tsx'],
     },
   },
   resolve: {

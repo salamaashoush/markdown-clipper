@@ -4,13 +4,9 @@
 
 import { MessageFactory } from '~/types/messages';
 import { setupContextMenu, handleMessage, handleContextMenuClick } from './background/handlers';
-import { initializeMigration } from '~/lib/storage/migration';
 
 export default defineBackground(() => {
   console.log('Background service worker started');
-
-  // Initialize storage migration
-  initializeMigration().catch(console.error);
 
   // Setup context menu on installation
   setupContextMenu();

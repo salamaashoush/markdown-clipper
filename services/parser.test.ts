@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ContentParser } from '~/lib/parser/index';
+import { ContentParser } from '~/services/parser';
 
 describe('ContentParser', () => {
   let parser: ContentParser;

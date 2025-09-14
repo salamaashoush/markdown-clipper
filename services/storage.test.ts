@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { StorageManager } from '~/lib/storage/index';
+import { StorageManager } from '~/services/storage';
 import { StorageKey, DEFAULT_PROFILE } from '~/types/storage';
 import { DEFAULT_PREFERENCES } from '~/types/preferences';
 
@@ -290,9 +290,11 @@ describe('StorageManager', () => {
       const exported = await storage.exportData();
 
       expect(exported).toEqual({
-        version: 1,
-        exportDate: expect.any(Number),
-        data: mockData,
+        version: '1.0.0',
+        exportedAt: expect.any(Number),
+        preferences: mockData.preferences,
+        profiles: mockData.profiles,
+        recentConversions: mockData.recentConversions,
       });
     });
 

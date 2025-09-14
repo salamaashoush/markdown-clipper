@@ -6,7 +6,7 @@ import { Component, createSignal, onMount, Show } from 'solid-js';
 import { GeneralSettings } from './views/GeneralSettings';
 import { ProfileManager } from './views/ProfileManager';
 import { AdvancedSettings } from './views/AdvancedSettings';
-import { storage } from '~/lib/storage/index';
+import { storage } from '~/services/storage';
 import type { UserPreferences, ConversionProfile } from '~/types';
 
 type TabView = 'general' | 'profiles' | 'advanced';

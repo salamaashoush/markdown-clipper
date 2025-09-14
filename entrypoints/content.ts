@@ -3,7 +3,7 @@
  */
 
 import { MessageType } from '~/types/messages';
-import { ContentParser } from '~/lib/parser/index';
+import { ContentParser } from '~/services/parser';
 
 export default defineContentScript({
   matches: ['<all_urls>'],

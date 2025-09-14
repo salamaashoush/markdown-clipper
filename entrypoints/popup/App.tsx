@@ -7,6 +7,9 @@ import { Button } from '~/components/Button';
 import { TabList } from '~/components/TabList';
 import { MessageFactory, MessageType } from '~/types/messages';
 import type { TabInfo, ConversionProfile } from '~/types/index';
+import { storage } from '~/services/storage';
+import { profileMatcher } from '~/services/profile-matcher';
+import type { PageContext } from '~/services/profile-matcher';
 
 const App: Component = () => {
   const [tabs, setTabs] = createSignal<TabInfo[]>([]);
@@ -17,12 +20,56 @@ const App: Component = () => {
   const [error, setError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal<string | null>(null);
   const [activeView, setActiveView] = createSignal<'current' | 'all'>('current');
+  const [matchedProfile, setMatchedProfile] = createSignal<ConversionProfile | null>(null);
+  const [matchReason, setMatchReason] = createSignal<string[]>([]);
 
   // Load tabs and profiles on mount
   onMount(async () => {
     await loadTabs();
     await loadProfiles();
+    await autoSelectProfile();
   });
+
+  const autoSelectProfile = async () => {
+    try {
+      // Get current tab info
+      const currentTab = tabs().find(t => t.isActive);
+      if (!currentTab) return;
+
+      // Create page context
+      const context: PageContext = {
+        url: currentTab.url,
+        title: currentTab.title,
+        domain: new URL(currentTab.url).hostname,
+      };
+
+      // Find matching profile
+      const allProfiles = profiles();
+      const matched = profileMatcher.findMatchingProfile(allProfiles, context);
+
+      if (matched) {
+        setActiveProfile(matched);
+        setMatchedProfile(matched);
+
+        // Get match reasons if not default
+        if (!matched.isDefault) {
+          const reasons = profileMatcher.getMatchReason(matched, context);
+          setMatchReason(reasons);
+
+          // Show notification if profile was auto-selected
+          if (reasons.length > 0) {
+            const prefs = await storage.getPreferences();
+            if (prefs.showNotifications) {
+              setSuccess(`Auto-selected "${matched.name}" profile`);
+              setTimeout(() => setSuccess(null), 3000);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to auto-select profile:', error);
+    }
+  };
 
   const loadTabs = async () => {
     try {
@@ -163,7 +210,7 @@ const App: Component = () => {
   const openOptions = () => {
     // Open our custom options page in a new tab
     browser.tabs.create({
-      url: browser.runtime.getURL('options.html')
+      url: browser.runtime.getURL('/options.html')
     });
   };
 
@@ -186,13 +233,27 @@ const App: Component = () => {
 
       {/* Profile Selector */}
       <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profile</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Profile
+          <Show when={matchedProfile() && !matchedProfile()?.isDefault}>
+            <span class="ml-2 text-xs text-green-600 dark:text-green-400">
+              (auto-selected)
+            </span>
+          </Show>
+        </label>
         <select
           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           value={activeProfile()?.id || ''}
           onChange={(e) => {
             const profile = profiles().find(p => p.id === e.currentTarget.value);
-            if (profile) setActiveProfile(profile);
+            if (profile) {
+              setActiveProfile(profile);
+              // Clear match info if user manually selects
+              if (profile.id !== matchedProfile()?.id) {
+                setMatchedProfile(null);
+                setMatchReason([]);
+              }
+            }
           }}
         >
           <For each={profiles()}>
@@ -201,6 +262,18 @@ const App: Component = () => {
             )}
           </For>
         </select>
+
+        {/* Show match reasons */}
+        <Show when={matchReason().length > 0}>
+          <div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-xs text-green-700 dark:text-green-300">
+            <p class="font-medium mb-1">Profile matched because:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+              <For each={matchReason()}>
+                {(reason) => <li>{reason}</li>}
+              </For>
+            </ul>
+          </div>
+        </Show>
       </div>
 
       {/* View Tabs */}

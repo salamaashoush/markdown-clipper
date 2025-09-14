@@ -1,8 +1,14 @@
 {
-  "name": "wxt-solid-starter",
-  "description": "manifest.json description",
+  "name": "copy-as-markdown",
+  "description": "Convert web pages to well-formatted markdown",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "author": "Salama Ashoush",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/salamaashoush/copy-as-markdown"
+  },
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -13,7 +19,7 @@
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
-    "test": "vitest",
+    "test": "vitest run",
     "test:ui": "vitest --ui",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
@@ -27,8 +33,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
+    "@solidjs/testing-library": "^0.8.10",
     "@tailwindcss/postcss": "^4.1.13",
     "@tailwindcss/vite": "^4.1.13",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/chrome": "^0.1.11",
     "@types/turndown": "^5.0.5",
     "@typescript-eslint/eslint-plugin": "^8.43.0",

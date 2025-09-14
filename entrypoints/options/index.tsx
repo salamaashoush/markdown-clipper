@@ -3,10 +3,9 @@
  */
 
 import { render } from 'solid-js/web';
-import { ThemeProvider } from '~/lib/theme/ThemeProvider';
+import { ThemeProvider } from '~/components/ThemeProvider';
 import App from './App';
 import '../../styles/globals.css';
-import './style.css';
 
 const root = document.getElementById('root');
 if (root) {
