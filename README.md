@@ -97,6 +97,24 @@ pnpm zip:firefox
 | `pnpm format` | Format code with Prettier |
 | `pnpm typecheck` | TypeScript validation |
 
+### Icon Generation
+
+To regenerate PNG icons from the SVG source:
+
+```bash
+# Install ImageMagick (if not already installed)
+# macOS: brew install imagemagick
+# Ubuntu: sudo apt install imagemagick
+# Windows: Download from https://imagemagick.org
+
+# Generate all PNG sizes from SVG source
+magick design/icon.svg -colorspace sRGB -background transparent -resize 16x16 public/icon/16.png
+magick design/icon.svg -colorspace sRGB -background transparent -resize 32x32 public/icon/32.png
+magick design/icon.svg -colorspace sRGB -background transparent -resize 48x48 public/icon/48.png
+magick design/icon.svg -colorspace sRGB -background transparent -resize 96x96 public/icon/96.png
+magick design/icon.svg -colorspace sRGB -background transparent -resize 128x128 public/icon/128.png
+```
+
 ## 🏗 Project Structure
 
 ```
