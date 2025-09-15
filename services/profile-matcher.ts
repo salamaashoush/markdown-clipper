@@ -20,9 +20,9 @@ export class ProfileMatcher {
     profiles: ConversionProfile[],
     context: PageContext
   ): ConversionProfile | null {
-    // Filter profiles with enabled match rules
+    // Filter profiles with enabled match rules (excluding default profile for rule matching)
     const candidateProfiles = profiles.filter(
-      p => p.matchRules?.enabled && p.matchRules.rules.length > 0
+      p => p.matchRules?.enabled && p.matchRules.rules.length > 0 && !p.isDefault
     );
 
     if (candidateProfiles.length === 0) {
@@ -31,9 +31,10 @@ export class ProfileMatcher {
     }
 
     // Find all matching profiles
-    const matchingProfiles = candidateProfiles.filter(profile =>
-      this.profileMatches(profile, context)
-    );
+    const matchingProfiles = candidateProfiles.filter(profile => {
+      const matches = this.profileMatches(profile, context);
+      return matches;
+    });
 
     if (matchingProfiles.length === 0) {
       // No matches, return default
@@ -47,6 +48,7 @@ export class ProfileMatcher {
       return priorityB - priorityA;
     });
 
+    console.log(`ProfileMatcher: Auto-selected "${matchingProfiles[0].name}" for ${context.url}`);
     return matchingProfiles[0];
   }
 
@@ -75,33 +77,46 @@ export class ProfileMatcher {
    * Check if a single rule matches the context
    */
   private ruleMatches(rule: ProfileMatchRule, context: PageContext): boolean {
+    let result = false;
+    let value = '';
+
     switch (rule.type) {
       case 'domain':
-        return this.matchesPattern(
-          context.domain || this.extractDomain(context.url),
-          rule.pattern,
-          rule.matchMode
-        );
+        value = context.domain || this.extractDomain(context.url);
+        result = this.matchesPattern(value, rule.pattern, rule.matchMode);
+        break;
 
       case 'url_pattern':
-        return this.matchesPattern(context.url, rule.pattern, rule.matchMode);
+        value = context.url;
+        result = this.matchesPattern(context.url, rule.pattern, rule.matchMode);
+        break;
 
       case 'title':
-        return this.matchesPattern(context.title, rule.pattern, rule.matchMode);
+        value = context.title;
+        result = this.matchesPattern(context.title, rule.pattern, rule.matchMode);
+        break;
 
       case 'meta_tag':
-        if (!context.metaTags) return false;
+        if (!context.metaTags) {
+          result = false;
+          break;
+        }
         // Pattern format: "name:content" or "property:content"
         const [metaName, metaValue] = rule.pattern.split(':');
         const actualValue = context.metaTags[metaName];
-        return actualValue ? this.matchesPattern(actualValue, metaValue || '', rule.matchMode) : false;
+        value = actualValue || '';
+        result = actualValue ? this.matchesPattern(actualValue, metaValue || '', rule.matchMode) : false;
+        break;
 
       case 'selector':
-        return context.hasSelector ? context.hasSelector(rule.pattern) : false;
+        result = context.hasSelector ? context.hasSelector(rule.pattern) : false;
+        break;
 
       default:
-        return false;
+        result = false;
     }
+
+    return result;
   }
 
   /**

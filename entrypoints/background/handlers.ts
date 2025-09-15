@@ -208,7 +208,7 @@ async function handleConvertPage(
     }
 
     // Record the conversion in history
-    await historyService.addEntry({
+    const historyEntry = {
       id: crypto.randomUUID(),
       url: content.url,
       title: content.title,
@@ -217,7 +217,11 @@ async function handleConvertPage(
       sizeBytes: document.sizeBytes,
       duration: 0,
       success: true,
-    });
+      markdown: document.content, // Store the actual markdown content
+    };
+
+
+    await historyService.addEntry(historyEntry);
 
     return MessageFactory.createResponse(messageId, {
       markdown: document.content,
@@ -313,6 +317,23 @@ async function handleConvertTabs(
           markdown: document.content,
           fileName: document.fileName,
         });
+
+        // Save to history
+        const historyEntry = {
+          id: crypto.randomUUID(),
+          url: content.url,
+          title: content.title,
+          timestamp: Date.now(),
+          profileUsed: profile.id,
+          sizeBytes: document.sizeBytes || 0,
+          duration: 0,
+          success: true,
+          markdown: document.content, // Store the actual markdown content
+        };
+
+
+        await historyService.addEntry(historyEntry);
+
         successCount++;
       } catch (error) {
         results.push({

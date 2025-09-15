@@ -194,7 +194,11 @@ export interface RecentConversion {
   duration: number;
   success: boolean;
   errorMessage?: string;
+  markdown?: string; // The actual converted markdown content
 }
+
+// Alias for history service compatibility
+export type ConversionRecord = RecentConversion;
 
 export interface ConversionCache {
   [url: string]: CachedContent;

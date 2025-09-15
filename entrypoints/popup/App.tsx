@@ -26,14 +26,18 @@ const App: Component = () => {
   onMount(async () => {
     await loadTabs();
     await loadProfiles();
-    await autoSelectProfile();
+    // Wait a bit for everything to settle, then auto-select
+    setTimeout(autoSelectProfile, 100);
   });
 
   const autoSelectProfile = async () => {
     try {
       // Get current tab info
       const currentTab = tabs().find(t => t.isActive);
-      if (!currentTab) return;
+
+      if (!currentTab) {
+        return;
+      }
 
       // Create page context
       const context: PageContext = {
@@ -48,21 +52,25 @@ const App: Component = () => {
 
       if (matched) {
         setActiveProfile(matched);
-        setMatchedProfile(matched);
 
-        // Get match reasons if not default
-        if (!matched.isDefault) {
-          const reasons = profileMatcher.getMatchReason(matched, context);
+        // Get match reasons
+        const reasons = profileMatcher.getMatchReason(matched, context);
+
+        // Only set as "matched" if there are actual match reasons (not just default fallback)
+        if (reasons.length > 0) {
+          setMatchedProfile(matched);
           setMatchReason(reasons);
 
-          // Show notification if profile was auto-selected
-          if (reasons.length > 0) {
-            const prefs = await storage.getPreferences();
-            if (prefs.showNotifications) {
-              setSuccess(`Auto-selected "${matched.name}" profile`);
-              setTimeout(() => setSuccess(null), 3000);
-            }
+          // Show notification if profile was auto-selected based on rules
+          const prefs = await storage.getPreferences();
+          if (prefs.showNotifications) {
+            setSuccess(`Auto-selected "${matched.name}" profile`);
+            setTimeout(() => setSuccess(null), 3000);
           }
+        } else {
+          // Clear match indicators if this is just default fallback
+          setMatchedProfile(null);
+          setMatchReason([]);
         }
       }
     } catch (error) {
@@ -216,26 +224,51 @@ const App: Component = () => {
       <div class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0">
         <div class="flex items-center justify-between">
           {/* Profile Dropdown - Left side */}
-          <select
-            class="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-            value={activeProfile()?.id || ''}
-            onChange={(e) => {
-              const profile = profiles().find(p => p.id === e.currentTarget.value);
-              if (profile) {
-                setActiveProfile(profile);
-                if (profile.id !== matchedProfile()?.id) {
-                  setMatchedProfile(null);
-                  setMatchReason([]);
+          <div class="flex-1 mr-2">
+            <select
+              class={`w-full px-2 py-1 bg-gray-50 dark:bg-gray-800 border text-sm text-gray-900 dark:text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                matchedProfile() && matchReason().length > 0
+                  ? 'border-green-400 dark:border-green-500 bg-green-50 dark:bg-green-900/20'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
+              value={activeProfile()?.id || ''}
+              onChange={(e) => {
+                const profile = profiles().find(p => p.id === e.currentTarget.value);
+                if (profile) {
+                  setActiveProfile(profile);
+                  if (profile.id !== matchedProfile()?.id) {
+                    setMatchedProfile(null);
+                    setMatchReason([]);
+                  }
                 }
-              }
-            }}
-          >
-            <For each={profiles()}>
-              {(profile) => (
-                <option value={profile.id}>{profile.name}</option>
-              )}
-            </For>
-          </select>
+              }}
+            >
+              <For each={profiles()}>
+                {(profile) => (
+                  <option value={profile.id}>
+                    {profile.name}
+                    {matchedProfile()?.id === profile.id && matchReason().length > 0 ? ' ✓' : ''}
+                  </option>
+                )}
+              </For>
+            </select>
+
+            {/* Auto-selection hint */}
+            <Show when={matchedProfile() && matchReason().length > 0}>
+              <div class="mt-1 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span
+                  class="truncate cursor-help"
+                  title={`Auto-selected based on matching rules:\n${matchReason().join('\n')}`}
+                >
+                  Auto-selected based on page rules
+                  {matchReason().length > 1 ? ` (${matchReason().length} matches)` : ''}
+                </span>
+              </div>
+            </Show>
+          </div>
 
           {/* Right side buttons */}
           <div class="flex items-center gap-1">

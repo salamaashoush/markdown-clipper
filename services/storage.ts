@@ -236,14 +236,23 @@ export class StorageManager {
   }
 
   /**
-   * Get storage info
+   * Get storage info with detailed breakdown
    */
   public async getStorageInfo(): Promise<{
     sync: { used: number; total: number; percentage: number };
     local: { used: number; total: number; percentage: number };
+    breakdown: {
+      profiles: number;
+      history: number;
+      preferencesSize: number;
+      cacheSize: number;
+    };
   }> {
     const syncUsed = await browser.storage.sync.getBytesInUse();
     const localUsed = await browser.storage.local.getBytesInUse();
+
+    // Calculate breakdown
+    const breakdown = await this.calculateStorageBreakdown();
 
     return {
       sync: {
@@ -256,7 +265,50 @@ export class StorageManager {
         total: browser.storage.local.QUOTA_BYTES,
         percentage: (localUsed / browser.storage.local.QUOTA_BYTES) * 100,
       },
+      breakdown,
     };
+  }
+
+  /**
+   * Calculate detailed storage breakdown
+   */
+  private async calculateStorageBreakdown(): Promise<{
+    profiles: number;
+    history: number;
+    preferencesSize: number;
+    cacheSize: number;
+  }> {
+    try {
+      // Get profiles count and size
+      const profiles = await this.getProfiles();
+      const profilesSize = await browser.storage.sync.getBytesInUse(StorageKey.PROFILES);
+
+      // Get history count and size (from history service)
+      const historyResult = await browser.storage.local.get('conversion_history');
+      const historyEntries = historyResult.conversion_history || [];
+      const historySize = await browser.storage.local.getBytesInUse('conversion_history');
+
+      // Get preferences size
+      const preferencesSize = await browser.storage.sync.getBytesInUse(StorageKey.PREFERENCES);
+
+      // Get cache size (if exists)
+      const cacheSize = await browser.storage.local.getBytesInUse(StorageKey.CACHE);
+
+      return {
+        profiles: profiles.length,
+        history: historyEntries.length,
+        preferencesSize,
+        cacheSize,
+      };
+    } catch (error) {
+      console.error('Failed to calculate storage breakdown:', error);
+      return {
+        profiles: 0,
+        history: 0,
+        preferencesSize: 0,
+        cacheSize: 0,
+      };
+    }
   }
 
   /**

@@ -19,13 +19,22 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
     setLocalPrefs(props.preferences);
   });
 
-  // Load storage info on mount
-  onMount(async () => {
+  // Load storage info on mount and when storage section is active
+  const loadStorageInfo = async () => {
     try {
       const info = await storage.getStorageInfo();
       setStorageInfo(info);
     } catch (error) {
       console.error('Failed to get storage info:', error);
+    }
+  };
+
+  onMount(loadStorageInfo);
+
+  // Refresh storage info when storage section is viewed
+  createEffect(() => {
+    if (activeSection() === 'storage') {
+      loadStorageInfo();
     }
   });
 
@@ -67,6 +76,9 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
       const data = JSON.parse(text);
       await storage.importData(data);
       setImportStatus('Import successful! Please refresh the page.');
+
+      // Refresh storage info to reflect the changes
+      setTimeout(loadStorageInfo, 500);
     } catch (error) {
       console.error('Import failed:', error);
       setImportStatus('Import failed. Please check the file format.');
@@ -82,6 +94,9 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
       await storage.clearRecentConversions();
       await storage.resetPreferences();
       setImportStatus('All data cleared. Please refresh the page.');
+
+      // Refresh storage info to reflect the changes
+      setTimeout(loadStorageInfo, 500);
     } catch (error) {
       console.error('Clear data failed:', error);
       setImportStatus('Failed to clear data');
@@ -252,6 +267,21 @@ export const AdvancedSettings: Component<AdvancedSettingsProps> = (props) => {
               </div>
 
               <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                <div class="flex items-center justify-between mb-4">
+                  <h4 class="text-lg font-medium text-gray-900 dark:text-gray-100">Storage Usage</h4>
+                  <Button
+                    onClick={loadStorageInfo}
+                    variant="ghost"
+                    size="sm"
+                    class="gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                  </Button>
+                </div>
+
                 <Show when={storageInfo()} fallback={
                   <div class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                     Loading storage information...

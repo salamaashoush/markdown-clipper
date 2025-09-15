@@ -3,7 +3,6 @@
  */
 
 import type { ConversionRecord } from '~/types/storage';
-import { storage } from './storage';
 
 export interface HistoryEntry extends ConversionRecord {
   isFavorite?: boolean;
@@ -40,11 +39,12 @@ class HistoryService {
   async getHistory(filter?: HistoryFilter): Promise<HistoryEntry[]> {
     const history = await this.loadHistory();
 
+
     if (!filter) {
       return history;
     }
 
-    return history.filter(entry => {
+    return history.filter((entry) => {
       // Search term filter
       if (filter.searchTerm) {
         const searchLower = filter.searchTerm.toLowerCase();
@@ -77,7 +77,7 @@ class HistoryService {
 
       // Tags filter
       if (filter.tags && filter.tags.length > 0) {
-        if (!entry.tags || !filter.tags.some(tag => entry.tags?.includes(tag))) {
+        if (!entry.tags || !filter.tags.some((tag) => entry.tags?.includes(tag))) {
           return false;
         }
       }
@@ -90,24 +90,39 @@ class HistoryService {
    * Add a new history entry
    */
   async addEntry(entry: ConversionRecord): Promise<void> {
-    const history = await this.loadHistory();
+    try {
+      const history = await this.loadHistory();
 
-    // Create history entry
-    const historyEntry: HistoryEntry = {
-      ...entry,
-      isFavorite: false,
-      tags: [],
-    };
+      // Create history entry - explicitly copy all fields to ensure markdown is preserved
+      const historyEntry: HistoryEntry = {
+        id: entry.id,
+        url: entry.url,
+        title: entry.title,
+        timestamp: entry.timestamp,
+        profileUsed: entry.profileUsed,
+        sizeBytes: entry.sizeBytes,
+        duration: entry.duration,
+        success: entry.success,
+        errorMessage: entry.errorMessage,
+        markdown: entry.markdown, // Explicitly copy markdown field
+        isFavorite: false,
+        tags: [],
+      };
 
-    // Add to beginning of history
-    history.unshift(historyEntry);
 
-    // Trim history if too large
-    if (history.length > this.MAX_HISTORY_SIZE) {
-      history.splice(this.MAX_HISTORY_SIZE);
+      // Add to beginning of history
+      history.unshift(historyEntry);
+
+      // Trim history if too large
+      if (history.length > this.MAX_HISTORY_SIZE) {
+        history.splice(this.MAX_HISTORY_SIZE);
+      }
+
+      await this.saveHistory(history);
+    } catch (error) {
+      console.error('Failed to save history entry:', error);
+      throw error;
     }
-
-    await this.saveHistory(history);
   }
 
   /**
@@ -115,7 +130,7 @@ class HistoryService {
    */
   async toggleFavorite(id: string): Promise<boolean> {
     const history = await this.loadHistory();
-    const entry = history.find(e => e.id === id);
+    const entry = history.find((e) => e.id === id);
 
     if (!entry) {
       throw new Error('History entry not found');
@@ -132,7 +147,7 @@ class HistoryService {
    */
   async updateNotes(id: string, notes: string): Promise<void> {
     const history = await this.loadHistory();
-    const entry = history.find(e => e.id === id);
+    const entry = history.find((e) => e.id === id);
 
     if (!entry) {
       throw new Error('History entry not found');
@@ -147,7 +162,7 @@ class HistoryService {
    */
   async updateTags(id: string, tags: string[]): Promise<void> {
     const history = await this.loadHistory();
-    const entry = history.find(e => e.id === id);
+    const entry = history.find((e) => e.id === id);
 
     if (!entry) {
       throw new Error('History entry not found');
@@ -162,7 +177,7 @@ class HistoryService {
    */
   async deleteEntry(id: string): Promise<void> {
     const history = await this.loadHistory();
-    const index = history.findIndex(e => e.id === id);
+    const index = history.findIndex((e) => e.id === id);
 
     if (index === -1) {
       throw new Error('History entry not found');
@@ -178,7 +193,7 @@ class HistoryService {
   async clearHistory(keepFavorites = true): Promise<void> {
     if (keepFavorites) {
       const history = await this.loadHistory();
-      const favorites = history.filter(e => e.isFavorite);
+      const favorites = history.filter((e) => e.isFavorite);
       await this.saveHistory(favorites);
     } else {
       await this.saveHistory([]);
@@ -203,8 +218,8 @@ class HistoryService {
     }
 
     // Calculate stats
-    const favoriteCount = history.filter(e => e.isFavorite).length;
-    const successCount = history.filter(e => e.success).length;
+    const favoriteCount = history.filter((e) => e.isFavorite).length;
+    const successCount = history.filter((e) => e.success).length;
     const successRate = (successCount / history.length) * 100;
 
     const totalDuration = history.reduce((sum, e) => sum + (e.duration || 0), 0);
@@ -212,15 +227,15 @@ class HistoryService {
 
     // Find most used profile
     const profileCounts = new Map<string, number>();
-    history.forEach(e => {
+    history.forEach((e) => {
       profileCounts.set(e.profileUsed, (profileCounts.get(e.profileUsed) || 0) + 1);
     });
-    const mostUsedProfile = Array.from(profileCounts.entries())
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    const mostUsedProfile =
+      Array.from(profileCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
     // Get top domains
     const domainCounts = new Map<string, number>();
-    history.forEach(e => {
+    history.forEach((e) => {
       try {
         const domain = new URL(e.url).hostname;
         domainCounts.set(domain, (domainCounts.get(domain) || 0) + 1);
@@ -250,8 +265,8 @@ class HistoryService {
     const history = await this.loadHistory();
     const tagCounts = new Map<string, number>();
 
-    history.forEach(entry => {
-      entry.tags?.forEach(tag => {
+    history.forEach((entry) => {
+      entry.tags?.forEach((tag) => {
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
       });
     });
@@ -285,9 +300,7 @@ class HistoryService {
       const mergedHistory = [...importedHistory, ...currentHistory];
 
       // Remove duplicates based on ID
-      const uniqueHistory = Array.from(
-        new Map(mergedHistory.map(e => [e.id, e])).values()
-      );
+      const uniqueHistory = Array.from(new Map(mergedHistory.map((e) => [e.id, e])).values());
 
       // Sort by timestamp
       uniqueHistory.sort((a, b) => b.timestamp - a.timestamp);
@@ -308,7 +321,10 @@ class HistoryService {
    */
   private async loadHistory(): Promise<HistoryEntry[]> {
     const result = await browser.storage.local.get(this.HISTORY_KEY);
-    return result[this.HISTORY_KEY] || [];
+    const entries = result[this.HISTORY_KEY] || [];
+
+
+    return entries;
   }
 
   /**
