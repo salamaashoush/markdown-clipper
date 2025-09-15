@@ -1,12 +1,12 @@
 {
-  "name": "copy-as-markdown",
-  "description": "Convert web pages to well-formatted markdown",
+  "name": "markdown-clipper",
+  "description": "MarkDown Clipper - Convert web pages to well-formatted markdown",
   "private": true,
   "version": "1.0.0",
   "author": "Salama Ashoush",
   "repository": {
     "type": "git",
-    "url": "https://github.com/salamaashoush/copy-as-markdown"
+    "url": "https://github.com/salamaashoush/markdown-clipper"
   },
   "license": "MIT",
   "type": "module",
@@ -23,7 +23,9 @@
     "test:ui": "vitest --ui",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:all": "pnpm build && pnpm build:firefox",
+    "package:all": "pnpm build:all && pnpm zip && pnpm zip:firefox"
   },
   "dependencies": {
     "@solidjs/router": "^0.15.3",

@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build for Chrome
+        run: pnpm build
+
+      - name: Build for Firefox
+        run: pnpm build:firefox
+
+      - name: Package Chrome extension
+        run: pnpm zip
+
+      - name: Package Firefox extension
+        run: pnpm zip:firefox
+
+      - name: Get package version
+        id: package-version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            .output/*.zip
+          name: Release v${{ steps.package-version.outputs.VERSION }}
+          body: |
+            ## 📦 Release v${{ steps.package-version.outputs.VERSION }}
+
+            ### Downloads for Manual Upload
+            - **Chrome Web Store**: `copy-as-markdown-${{ steps.package-version.outputs.VERSION }}-chrome.zip`
+            - **Firefox Add-ons**: `copy-as-markdown-${{ steps.package-version.outputs.VERSION }}-firefox.zip`
+            - **Firefox Sources**: `copy-as-markdown-${{ steps.package-version.outputs.VERSION }}-sources.zip`
+
+            ### Installation Instructions
+            1. Download the appropriate zip file for your browser
+            2. For Chrome: Upload to [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole/)
+            3. For Firefox: Upload to [Firefox Add-ons Developer Hub](https://addons.mozilla.org/developers/)
+
+            ### Changes
+            See [CHANGELOG.md](CHANGELOG.md) for detailed changes in this release.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

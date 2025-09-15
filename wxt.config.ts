@@ -8,7 +8,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'Copy as Markdown',
+    name: 'MarkDown Clipper',
     description: 'Convert web pages to well-formatted markdown for offline reading, sharing, and AI consumption',
     version: '1.0.0',
     permissions: [

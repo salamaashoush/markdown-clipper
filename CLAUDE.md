@@ -1,8 +1,8 @@
-# Claude Code Context: Copy as Markdown Extension
+# Claude Code Context: MarkDown Clipper Extension
 
 ## Project Overview
 
-Chrome extension that converts web pages to well-formatted markdown for offline reading, sharing, and AI consumption. Built with WXT, SolidJS, Tailwind CSS, and TypeScript.
+MarkDown Clipper is a Chrome extension that converts web pages to well-formatted markdown for offline reading, sharing, and AI consumption. Built with WXT, SolidJS, Tailwind CSS, and TypeScript.
 
 ## Tech Stack
 
